@@ -75,7 +75,7 @@ from .const import (
 
 
 # Logger for this module. Messages appear in HA logs under
-# "custom_components.ha_health_reporter.coordinator"
+# "custom_components.ci_health_reporter.coordinator"
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -145,7 +145,7 @@ class HealthReporterCoordinator:
         async_update is an async method because _post_payload awaits an HTTP
         request. Any function that uses `await` must itself be `async def`.
         """
-        _LOGGER.debug("HA Health Reporter: starting update")
+        _LOGGER.debug("CI Health Reporter: starting update")
 
         # Step 1: Build the payload dict (synchronous — just reads state machine)
         payload = self._build_payload()

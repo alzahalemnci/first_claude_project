@@ -1,5 +1,5 @@
 """
-mock_server/server.py — Test HTTP server for HA Health Reporter
+mock_server/server.py — Test HTTP server for CI Health Reporter
 ================================================================
 
 PURPOSE:

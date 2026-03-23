@@ -1,0 +1,10 @@
+{
+  "domain": "ci_health_reporter",
+  "name": "CI Health Reporter",
+  "codeowners": [],
+  "documentation": "https://github.com/alzahalemnci/ci_health_reporter",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "version": "1.0.0",
+  "requirements": []
+}

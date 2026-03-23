@@ -1,5 +1,5 @@
 """
-__init__.py — Integration entry point for HA Health Reporter
+__init__.py — Integration entry point for CI Health Reporter
 =============================================================
 
 WHY IS THIS FILE CALLED __init__.py?
@@ -16,8 +16,8 @@ responsible for:
      scheduling the recurring health reports
 
 HOW HA LOADS THIS FILE:
-  When HA starts and reads configuration.yaml, it sees "ha_health_reporter:"
-  and looks for a folder named ha_health_reporter inside custom_components/.
+  When HA starts and reads configuration.yaml, it sees "ci_health_reporter:"
+  and looks for a folder named ci_health_reporter inside custom_components/.
   It then imports this __init__.py and calls async_setup() automatically.
 
 ASYNC vs SYNC in HOME ASSISTANT:
@@ -35,7 +35,7 @@ ASYNC vs SYNC in HOME ASSISTANT:
 
 Configuration (configuration.yaml):
 
-    ha_health_reporter:
+    ci_health_reporter:
       server_url: "http://192.168.1.189"
       server_port: 8765
       interval: 60        # seconds between reports (default: 60)
@@ -67,7 +67,7 @@ from .coordinator import HealthReporterCoordinator
 # LOGGER
 # ---------------------------------------------------------------------------
 # __name__ resolves to the full module path, e.g.:
-#   custom_components.ha_health_reporter
+#   custom_components.ci_health_reporter
 #
 # HA uses this name to route log messages. You can filter logs by this name
 # in the HA UI under Settings → System → Logs, or in home-assistant.log.
@@ -103,7 +103,7 @@ _LOGGER = logging.getLogger(__name__)
 #   vol.All(a, b)               → runs validator `a` then validator `b` (both must pass)
 #
 # extra=vol.ALLOW_EXTRA means if the user adds unrecognised keys under
-# ha_health_reporter:, HA won't reject the whole config — it just ignores them.
+# ci_health_reporter:, HA won't reject the whole config — it just ignores them.
 # This is important at the top level because other integrations also live in
 # the same configuration.yaml dict.
 CONFIG_SCHEMA = vol.Schema(
@@ -135,14 +135,14 @@ CONFIG_SCHEMA = vol.Schema(
 #             HTTP requests through HA's session.
 #
 #   config → the entire parsed configuration.yaml as a Python dictionary.
-#             Our section is at config["ha_health_reporter"] (or config[DOMAIN]).
+#             Our section is at config["ci_health_reporter"] (or config[DOMAIN]).
 #
 # Return value:
 #   True  → setup succeeded, HA should consider this integration loaded
 #   False → setup failed, HA will log an error and skip this integration
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """
-    Set up the HA Health Reporter integration.
+    Set up the CI Health Reporter integration.
 
     Called by HA when it processes configuration.yaml.
     Reads our config block, creates the coordinator, and schedules
@@ -151,7 +151,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     # config.get(DOMAIN) returns our config block, or None if the user
     # added the integration to custom_components/ but forgot to add the
-    # ha_health_reporter: block in configuration.yaml.
+    # ci_health_reporter: block in configuration.yaml.
     conf = config.get(DOMAIN)
     if conf is None:
         # This is not an error — the integration is installed but unconfigured.
@@ -170,7 +170,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # than f-strings because the string is only formatted if the message will
     # actually be displayed.
     _LOGGER.info(
-        "HA Health Reporter: starting — reporting to %s:%s every %ss",
+        "CI Health Reporter: starting — reporting to %s:%s every %ss",
         server_url,
         server_port,
         interval,
@@ -232,7 +232,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # errors or noisy log messages.
     async def _on_stop(event):
         cancel_interval()  # Tell HA to stop calling coordinator.async_update
-        _LOGGER.info("HA Health Reporter: stopped")
+        _LOGGER.info("CI Health Reporter: stopped")
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _on_stop)
 

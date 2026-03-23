@@ -1,11 +1,11 @@
 """
-const.py — Constants for the HA Health Reporter integration
+const.py — Constants for the CI Health Reporter integration
 ============================================================
 
 WHY A SEPARATE FILE FOR CONSTANTS?
 ------------------------------------
 In any project with more than one file, it's common to need the same value
-in multiple places. If you write the raw string "ha_health_reporter" in five
+in multiple places. If you write the raw string "ci_health_reporter" in five
 different files, and you later need to rename it, you have to find and change
 it in five places — and probably miss one.
 
@@ -23,14 +23,14 @@ This is sometimes called the DRY principle — Don't Repeat Yourself.
 #   - Be all lowercase
 #   - Use underscores, not hyphens or spaces
 #   - Match the name of the folder inside custom_components/
-#     (i.e. custom_components/ha_health_reporter/)
+#     (i.e. custom_components/ci_health_reporter/)
 #   - Match the "domain" field in manifest.json
 #
 # HA uses the domain as:
-#   - The key in configuration.yaml (ha_health_reporter: ...)
+#   - The key in configuration.yaml (ci_health_reporter: ...)
 #   - The key in hass.data[DOMAIN] (where we store our integration's state)
-#   - The prefix for any entities this integration creates (e.g. sensor.ha_health_reporter_xxx)
-DOMAIN = "ha_health_reporter"
+#   - The prefix for any entities this integration creates (e.g. sensor.ci_health_reporter_xxx)
+DOMAIN = "ci_health_reporter"
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +39,7 @@ DOMAIN = "ha_health_reporter"
 # These strings are the keys the user writes in their configuration.yaml.
 # For example:
 #
-#   ha_health_reporter:
+#   ci_health_reporter:
 #     server_url: "http://192.168.1.189"   <-- CONF_SERVER_URL
 #     server_port: 8765                     <-- CONF_SERVER_PORT
 #     interval: 60                          <-- CONF_INTERVAL

@@ -1,4 +1,4 @@
-# HA Health Reporter
+# CI Health Reporter
 
 A Home Assistant custom integration that periodically gathers health data from your HA instance — battery levels, offline entities, and automation states — and ships it as JSON to an HTTP server on your network.
 
@@ -77,12 +77,12 @@ Every report is a JSON payload sent via HTTP POST to your server. It contains:
 
 ### Step 1 — Copy the integration
 
-Copy the `custom_components/ha_health_reporter` folder into your Home Assistant configuration directory:
+Copy the `custom_components/ci_health_reporter` folder into your Home Assistant configuration directory:
 
 ```
 <your HA config dir>/
 └── custom_components/
-    └── ha_health_reporter/
+    └── ci_health_reporter/
         ├── __init__.py
         ├── manifest.json
         ├── const.py
@@ -93,7 +93,7 @@ Your HA config directory is typically `/config` (if running in Docker or Home As
 
 **Using SCP (from your computer to the HA host):**
 ```bash
-scp -r custom_components/ha_health_reporter homeassistant@<HA_IP>:/config/custom_components/
+scp -r custom_components/ci_health_reporter homeassistant@<HA_IP>:/config/custom_components/
 ```
 
 **Using the HA file editor add-on (Home Assistant OS):**
@@ -105,7 +105,7 @@ If you have the File Editor or Studio Code Server add-on installed, you can uplo
 Add the following block to your `configuration.yaml`:
 
 ```yaml
-ha_health_reporter:
+ci_health_reporter:
   server_url: "http://192.168.1.189"   # IP of your reporting server
   server_port: 8765                     # port your server is listening on
   interval: 60                          # seconds between reports (minimum: 10)
@@ -131,12 +131,12 @@ After saving `configuration.yaml`, restart HA:
 
 Verify the integration started correctly by checking your HA logs:
 
-- **UI:** Settings → System → Logs → search for `ha_health_reporter`
+- **UI:** Settings → System → Logs → search for `ci_health_reporter`
 - **File:** `<config dir>/home-assistant.log`
 
 You should see:
 ```
-INFO (MainThread) [custom_components.ha_health_reporter] HA Health Reporter: starting — reporting to http://192.168.1.189:8765 every 60s
+INFO (MainThread) [custom_components.ci_health_reporter] CI Health Reporter: starting — reporting to http://192.168.1.189:8765 every 60s
 ```
 
 ---
@@ -178,7 +178,7 @@ To keep the mock server running as a background service:
 ```bash
 # /etc/systemd/system/ha-health-mock.service
 [Unit]
-Description=HA Health Reporter Mock Server
+Description=CI Health Reporter Mock Server
 
 [Service]
 ExecStart=/usr/bin/python3 /path/to/mock_server/server.py 8765
@@ -202,7 +202,7 @@ The default interval is **60 seconds** — suitable for testing and light monito
 To change it, update `configuration.yaml`:
 
 ```yaml
-ha_health_reporter:
+ci_health_reporter:
   server_url: "http://192.168.1.189"
   server_port: 8765
   interval: 300    # 5 minutes
@@ -215,9 +215,9 @@ Then restart HA.
 ## Project Structure
 
 ```
-first_claude_project/
+ci_health_reporter/
 ├── custom_components/
-│   └── ha_health_reporter/
+│   └── ci_health_reporter/
 │       ├── __init__.py        # Integration entry point and scheduling
 │       ├── coordinator.py     # Data gathering and HTTP POST logic
 │       ├── const.py           # Constants and defaults
@@ -233,12 +233,12 @@ first_claude_project/
 
 **The integration doesn't appear to be loading**
 
-Check that the folder is named exactly `ha_health_reporter` and placed inside a `custom_components` directory at the root of your HA config directory.
+Check that the folder is named exactly `ci_health_reporter` and placed inside a `custom_components` directory at the root of your HA config directory.
 
 **No data is being received by the server**
 
 1. Confirm the server is running: `curl -X POST http://192.168.1.189:8765/health -H "Content-Type: application/json" -d '{}'`
-2. Check HA logs for errors from `custom_components.ha_health_reporter`
+2. Check HA logs for errors from `custom_components.ci_health_reporter`
 3. Make sure the HA host can reach `192.168.1.189` over the network (ping it from the HA terminal)
 
 **`Invalid config` error on startup**
