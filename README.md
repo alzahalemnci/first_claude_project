@@ -1,23 +1,53 @@
 # CI Health Reporter
 
-A Home Assistant custom integration that periodically gathers health data from your HA instance — battery levels, offline entities, and automation states — and ships it as JSON to an HTTP server on your network.
+A Home Assistant custom integration that periodically gathers health data from your HA instance — battery levels, offline entities, and automation states — and makes it available in two ways:
 
-Built as a proof of concept for monitoring Home Assistant from an external service (e.g. a dashboard, alerting system, or data store running on another machine).
+1. **Live HA dashboard** — a built-in Lovelace "Service Overview" sidebar panel with KPI cards, active issues, health history graph, battery levels chart, and maintenance suggestions
+2. **HTTP push** — JSON payloads posted to an HTTP server on your network for external dashboards, alerting, or data storage
+
+![Deployed dashboard](ha_service_dashboard_deployed.jpg)
 
 ---
 
-## What It Reports
+## What It Monitors
 
-Every report is a JSON payload sent via HTTP POST to your server. It contains:
-
-| Field | Description |
+| Category | Details |
 |---|---|
-| `batteries` | All entities with a battery level, including a `low` flag for anything at or below 20% |
-| `offline_entities` | Every entity whose state is `unavailable` or `unknown` |
-| `automations` | All automations — enabled/disabled state and when each last triggered |
-| `summary` | Counts for quick at-a-glance stats |
-| `timestamp` | UTC ISO 8601 timestamp of when the report was generated |
-| `ha_version` | Your Home Assistant version |
+| **Battery levels** | All entities with a battery sensor or `battery_level` attribute. Flags anything at or below 20% as low. |
+| **Offline entities** | Every entity whose state is `unavailable` or `unknown` |
+| **Automations** | All automations — enabled/disabled state and last triggered time |
+| **System health score** | A 0–100% score computed from the above (see formula below) |
+
+### Health Score Formula
+
+```
+score = 100
+      - min(low_battery_count  × 5,  30)   # max 30 pts
+      - min(offline_count      × 3,  30)   # max 30 pts
+      - min(disabled_count     × 2,  20)   # max 20 pts
+clamped to [0, 100]
+```
+
+---
+
+## HA Sensor Entities
+
+The integration creates four sensor entities visible anywhere in HA (automations, alerts, other dashboards):
+
+| Entity ID | Description |
+|---|---|
+| `sensor.ci_health_low_battery_count` | Count of low-battery devices |
+| `sensor.ci_health_offline_count` | Count of offline/unknown entities |
+| `sensor.ci_health_disabled_automations` | Count of disabled automations |
+| `sensor.ci_health_system_health` | Overall health score (0–100 %) |
+
+Each sensor also exposes full data as attributes (device lists, names, etc.) which the Lovelace dashboard reads via Jinja2 templates.
+
+---
+
+## HTTP Payload
+
+Every report interval a JSON payload is also POSTed to your configured server.
 
 ### Example Payload
 
@@ -58,7 +88,8 @@ Every report is a JSON payload sent via HTTP POST to your server. It contains:
     "offline_count": 1,
     "automation_count": 8,
     "automations_enabled": 7,
-    "automations_disabled": 1
+    "automations_disabled": 1,
+    "system_health": 85
   }
 }
 ```
@@ -67,42 +98,44 @@ Every report is a JSON payload sent via HTTP POST to your server. It contains:
 
 ## Requirements
 
-- Home Assistant (any recent version — tested concept against 2024.x)
+- Home Assistant (any recent version — tested against 2024.x)
 - Python 3.11+ (bundled with Home Assistant)
-- Network access between the HA host and your server
+- Network access between the HA host and your reporting server (for HTTP push)
 
 ---
 
 ## Installation
 
-### Step 1 — Copy the integration
+### Step 1 — Copy the integration files
 
-Copy the `custom_components/ci_health_reporter` folder into your Home Assistant configuration directory:
+Copy the `custom_components/ci_health_reporter` folder into your HA config directory:
 
 ```
 <your HA config dir>/
+├── configuration.yaml
+├── ci_health_dashboard.yaml      ← also copy this here (Step 3)
 └── custom_components/
     └── ci_health_reporter/
         ├── __init__.py
-        ├── manifest.json
+        ├── coordinator.py
         ├── const.py
-        └── coordinator.py
+        ├── sensor.py
+        └── manifest.json
 ```
 
-Your HA config directory is typically `/config` (if running in Docker or Home Assistant OS) or `~/.homeassistant` (if running as a standalone Python install).
+Your HA config directory is typically `/config` (Home Assistant OS / Docker) or `~/.homeassistant` (standalone Python install).
 
-**Using SCP (from your computer to the HA host):**
+**Using SCP:**
 ```bash
 scp -r custom_components/ci_health_reporter homeassistant@<HA_IP>:/config/custom_components/
+scp ci_health_dashboard.yaml homeassistant@<HA_IP>:/config/
 ```
 
-**Using the HA file editor add-on (Home Assistant OS):**
-
-If you have the File Editor or Studio Code Server add-on installed, you can upload or create the files directly through the HA web UI.
+**Using the HA File Editor add-on:** upload or create files directly through the HA web UI.
 
 ### Step 2 — Configure `configuration.yaml`
 
-Add the following block to your `configuration.yaml`:
+Add the following block:
 
 ```yaml
 ci_health_reporter:
@@ -111,7 +144,7 @@ ci_health_reporter:
   interval: 60                          # seconds between reports (minimum: 10)
 ```
 
-All fields except `server_url` are optional. Defaults:
+All fields except `server_url` are optional:
 
 | Key | Default | Description |
 |---|---|---|
@@ -119,19 +152,34 @@ All fields except `server_url` are optional. Defaults:
 | `server_port` | `8765` | Port the HTTP server is listening on |
 | `interval` | `60` | Seconds between reports (min: 10) |
 
-### Step 3 — Restart Home Assistant
+### Step 3 — Set up the Lovelace dashboard
 
-After saving `configuration.yaml`, restart HA:
+Copy `ci_health_dashboard.yaml` to your HA config root (same folder as `configuration.yaml`), then add this block to `configuration.yaml`:
+
+```yaml
+lovelace:
+  dashboards:
+    ci-health:
+      mode: yaml
+      filename: ci_health_dashboard.yaml
+      title: Service Overview
+      icon: mdi:heart-pulse
+      show_in_sidebar: true
+```
+
+### Step 4 — Restart Home Assistant
 
 - **Home Assistant OS / Supervised:** Settings → System → Restart
 - **Docker:** `docker restart homeassistant`
 - **CLI:** `ha core restart`
 
-### Step 4 — Check the logs
+A **Service Overview** item will appear in the left sidebar. Sensor entities populate within the first report interval (default 60 seconds).
 
-Verify the integration started correctly by checking your HA logs:
+### Step 5 — Check the logs
 
-- **UI:** Settings → System → Logs → search for `ci_health_reporter`
+Verify the integration started correctly:
+
+- **UI:** Settings → System → Logs → search `ci_health_reporter`
 - **File:** `<config dir>/home-assistant.log`
 
 You should see:
@@ -145,21 +193,17 @@ INFO (MainThread) [custom_components.ci_health_reporter] CI Health Reporter: sta
 
 The `mock_server/` directory contains a simple Python server for testing. It listens for POST requests and pretty-prints the received payload to the terminal.
 
-### Start the server
-
-On the machine at `192.168.1.189`:
-
 ```bash
 python mock_server/server.py 8765
 ```
 
-You should see:
+Output:
 ```
 Mock health server listening on 0.0.0.0:8765/health
 Press Ctrl+C to stop.
 ```
 
-When HA sends a report, the payload is printed to the terminal:
+When HA sends a report:
 ```
 ============================================================
 Received health report at 2026-03-22T14:35:00+00:00
@@ -173,9 +217,7 @@ Received health report at 2026-03-22T14:35:00+00:00
 
 ### Running on startup (Linux/systemd)
 
-To keep the mock server running as a background service:
-
-```bash
+```ini
 # /etc/systemd/system/ha-health-mock.service
 [Unit]
 Description=CI Health Reporter Mock Server
@@ -195,23 +237,6 @@ sudo systemctl start ha-health-mock
 
 ---
 
-## Adjusting the Report Interval
-
-The default interval is **60 seconds** — suitable for testing and light monitoring. For production use on a Raspberry Pi, you may want to increase this to reduce CPU load.
-
-To change it, update `configuration.yaml`:
-
-```yaml
-ci_health_reporter:
-  server_url: "http://192.168.1.189"
-  server_port: 8765
-  interval: 300    # 5 minutes
-```
-
-Then restart HA.
-
----
-
 ## Project Structure
 
 ```
@@ -219,11 +244,15 @@ ci_health_reporter/
 ├── custom_components/
 │   └── ci_health_reporter/
 │       ├── __init__.py        # Integration entry point and scheduling
-│       ├── coordinator.py     # Data gathering and HTTP POST logic
-│       ├── const.py           # Constants and defaults
+│       ├── coordinator.py     # Data gathering, health score, HTTP POST
+│       ├── const.py           # Constants, defaults, health penalty values
+│       ├── sensor.py          # HA sensor entities (push-based, no polling)
 │       └── manifest.json      # HA integration metadata
 ├── mock_server/
 │   └── server.py              # Test server (BaseHTTPRequestHandler)
+├── ci_health_dashboard.yaml   # Lovelace dashboard (copy to HA config root)
+├── ha_service_dashboard.jpg   # Dashboard mockup
+├── ha_service_dashboard_deployed.jpg  # Deployed screenshot
 └── README.md
 ```
 
@@ -231,27 +260,33 @@ ci_health_reporter/
 
 ## Troubleshooting
 
-**The integration doesn't appear to be loading**
+**Integration doesn't load / no sidebar item**
 
-Check that the folder is named exactly `ci_health_reporter` and placed inside a `custom_components` directory at the root of your HA config directory.
+- Ensure the folder is named exactly `ci_health_reporter` inside `custom_components/`
+- Check HA logs for errors: Settings → System → Logs → search `ci_health_reporter`
+- Make sure `ci_health_dashboard.yaml` is in the config root, not inside `custom_components/`
 
-**No data is being received by the server**
+**Dashboard shows "Unknown" on all cards**
+
+The sensors haven't received their first data yet. Wait up to one report interval (default 60s) after HA starts. If it persists, check the logs for HTTP errors.
+
+**No data received by the mock server**
 
 1. Confirm the server is running: `curl -X POST http://192.168.1.189:8765/health -H "Content-Type: application/json" -d '{}'`
-2. Check HA logs for errors from `custom_components.ci_health_reporter`
-3. Make sure the HA host can reach `192.168.1.189` over the network (ping it from the HA terminal)
+2. Check HA can reach the server: ping it from the HA terminal
+3. Check logs for `ClientError` messages from `ci_health_reporter`
 
 **`Invalid config` error on startup**
 
-The `server_url` must include the scheme (`http://` or `https://`). Make sure your `configuration.yaml` entry is quoted and starts with `http://`.
+The `server_url` must include the scheme. Make sure it starts with `http://` or `https://` and is quoted in `configuration.yaml`.
 
 **Batteries not showing up**
 
-The integration detects battery entities two ways:
+The integration detects batteries two ways:
 - Sensors with `device_class: battery`
 - Any entity with a `battery_level` attribute
 
-If your battery sensors use a different attribute name, check the entity's attributes in Developer Tools → States and open an issue with the attribute name.
+Check your entity's attributes in Developer Tools → States to see which pattern applies.
 
 ---
 
